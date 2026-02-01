@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boarding House App</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+    <section id="login-screen" class="active-screen">
+        <div class="login-card">
+            <h1>Welcome Home</h1>
+            <p>Tenant Portal</p>
+            <form id="login-form">
+                <div class="form-group">
+                    <label>Room Number</label>
+                    <input type="text" id="login-room" placeholder="e.g. 101" required>
+                </div>
+                <div class="form-group">
+                    <label>PIN Code</label>
+                    <input type="password" id="login-pin" placeholder="****" required>
+                </div>
+                <button type="submit" class="btn-primary full-width">Login</button>
+                <div id="login-error" class="error-msg"></div>
+            </form>
+        </div>
+    </section>
+
+    <div id="app-container" class="hidden">
+        
+        <header class="desktop-header">
+            <div class="max-container header-content">
+                <div class="logo">🏠 BoardingHouse</div>
+                <nav class="desktop-nav">
+                    <a href="#" onclick="app.nav('home')">Dashboard</a>
+                    <a href="#" onclick="app.nav('announcements')">Announcements</a>
+                    <a href="#" onclick="app.nav('tickets')">Tickets</a>
+                    <a href="#" onclick="app.nav('billing')">Billing</a>
+                    <a href="#" onclick="app.logout()" class="logout-link">Logout</a>
+                </nav>
+            </div>
+        </header>
+
+        <main class="max-container">
+            
+            <section id="home-view" class="view-section">
+                <h2>Dashboard</h2>
+                <div class="home-grid">
+                    <div class="home-main">
+                        <div class="card">
+                            <h3>📢 Latest Announcements</h3>
+                            <div id="home-announcements-list" class="list-container">
+                                <p class="loading-text">Loading...</p>
+                            </div>
+                            <button class="btn-text" onclick="app.nav('announcements')">View All</button>
+                        </div>
+                    </div>
+
+                    <div class="home-sidebar">
+                        <div class="card highlight-card">
+                            <h3>⚡ Latest Bill</h3>
+                            <div id="home-soa-summary">
+                                <p class="loading-text">Checking...</p>
+                            </div>
+                            <button class="btn-secondary full-width" onclick="app.nav('billing')">View Details</button>
+                        </div>
+
+                        <div class="card quick-actions">
+                            <h3>Quick Actions</h3>
+                            <div class="action-grid">
+                                <button class="action-btn" onclick="app.nav('tickets')">Report Issue</button>
+                                <button class="action-btn" onclick="app.nav('billing')">History</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="announcements-view" class="view-section hidden">
+                <h2>Announcements</h2>
+                <div id="all-announcements-list" class="card-grid">
+                    </div>
+            </section>
+
+            <section id="tickets-view" class="view-section hidden">
+                <h2>Support Tickets</h2>
+                
+                <div class="card form-card">
+                    <h3>Submit New Ticket</h3>
+                    <form id="ticket-form">
+                        <div class="form-group">
+                            <label>Category</label>
+                            <select id="ticket-category">
+                                <option value="maintenance">Maintenance</option>
+                                <option value="wifi">Internet/WiFi</option>
+                                <option value="billing">Billing Inquiry</option>
+                                <option value="noise">Noise Complaint</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Message</label>
+                            <textarea id="ticket-message" rows="3" placeholder="Describe your issue..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary">Submit Ticket</button>
+                    </form>
+                </div>
+
+                <h3 class="mt-large">My Ticket History</h3>
+                <div id="tickets-list" class="card-grid">
+                    </div>
+            </section>
+
+            <section id="billing-view" class="view-section hidden">
+                <h2>Billing Statements</h2>
+                <div id="billing-list" class="card-grid">
+                    </div>
+            </section>
+
+        </main>
+
+        <nav class="mobile-nav">
+            <button class="nav-item" onclick="app.nav('home')">
+                <span class="icon">🏠</span>
+                <span class="label">Home</span>
+            </button>
+            <button class="nav-item" onclick="app.nav('announcements')">
+                <span class="icon">📢</span>
+                <span class="label">News</span>
+            </button>
+            <button class="nav-item" onclick="app.nav('tickets')">
+                <span class="icon">🎫</span>
+                <span class="label">Tickets</span>
+            </button>
+            <button class="nav-item" onclick="app.nav('billing')">
+                <span class="icon">🧾</span>
+                <span class="label">Billing</span>
+            </button>
+        </nav>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

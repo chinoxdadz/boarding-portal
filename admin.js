@@ -68,23 +68,65 @@ const adminApp = {
         } catch(e) { alert("Error: " + e.message); }
     },
 
-    // 3. Load Tickets
+    // 3. Load Tickets (Updated with Buttons)
     loadTickets: async () => {
         const container = document.getElementById('admin-tickets-list');
+        container.innerHTML = 'Loading...';
+        
         try {
+            // Get tickets, ordered by newest first
             const snap = await db.collection('tickets').orderBy('createdAt', 'desc').get();
             let html = '';
+            
             snap.forEach(doc => {
                 const data = doc.data();
+                const id = doc.id; // We need the ID to update/delete it
+                const isResolved = data.status === 'resolved';
+                const statusColor = isResolved ? 'green' : 'red';
+                const statusText = isResolved ? '✅ Solved' : '🔥 Open';
+
+                // Only show buttons if the ticket is NOT resolved yet
+                const actionButtons = isResolved 
+                    ? `<button onclick="adminApp.deleteTicket('${id}')" style="background:#666; color:white; padding:5px;">🗑 Delete</button>`
+                    : `<button onclick="adminApp.resolveTicket('${id}')" style="background:green; color:white; padding:5px; margin-right:5px;">✅ Mark Done</button>
+                       <button onclick="adminApp.deleteTicket('${id}')" style="background:red; color:white; padding:5px;">🗑 Delete</button>`;
+
                 html += `
-                    <div class="card" style="border-left: 5px solid red;">
-                        <strong>Room ${data.roomNo}</strong> - <small>${data.category}</small>
-                        <p>${data.description}</p>
-                        <small style="color:grey">${new Date(data.createdAt.seconds*1000).toLocaleString()}</small>
+                    <div class="card" style="border-left: 5px solid ${statusColor}; margin-bottom:10px; padding:15px;">
+                        <div style="display:flex; justify-content:space-between;">
+                            <strong>Room ${data.roomNo}</strong>
+                            <small style="color:${statusColor}; font-weight:bold;">${statusText}</small>
+                        </div>
+                        <p style="margin: 10px 0;">${data.description}</p>
+                        <div style="display:flex; justify-content:space-between; align-items:end;">
+                            <small style="color:grey">${new Date(data.createdAt.seconds*1000).toLocaleDateString()}</small>
+                            <div>${actionButtons}</div>
+                        </div>
                     </div>
                 `;
             });
             container.innerHTML = html || '<p>No tickets found.</p>';
-        } catch(e) { console.log(e); }
+        } catch(e) { 
+            console.error(e);
+            container.innerHTML = '<p>Error loading tickets.</p>'; 
+        }
+    },
+
+    // 4. Function to Mark as Resolved
+    resolveTicket: async (id) => {
+        if(!confirm("Mark this issue as fixed?")) return;
+        try {
+            await db.collection('tickets').doc(id).update({ status: 'resolved' });
+            adminApp.loadTickets(); // Refresh the list
+        } catch(e) { alert("Error: " + e.message); }
+    },
+
+    // 5. Function to Delete Ticket
+    deleteTicket: async (id) => {
+        if(!confirm("Permanently delete this ticket?")) return;
+        try {
+            await db.collection('tickets').doc(id).delete();
+            adminApp.loadTickets(); // Refresh the list
+        } catch(e) { alert("Error: " + e.message); }
     }
-};
+}

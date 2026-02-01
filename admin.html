@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Boarding House</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body style="padding-bottom: 50px;">
+
+    <section id="admin-login" class="active-screen">
+        <div class="login-card">
+            <h1>Admin Access</h1>
+            <input type="password" id="admin-pass" placeholder="Admin Password" style="width:100%; padding:10px; margin:10px 0;">
+            <button onclick="adminApp.login()" class="btn-primary full-width">Enter</button>
+        </div>
+    </section>
+
+    <section id="admin-dash" class="hidden max-container">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2>Manager Dashboard</h2>
+            <button onclick="location.reload()" style="background:red; color:white; border:none; padding:5px 10px; border-radius:4px;">Logout</button>
+        </div>
+
+        <div class="card" style="margin-bottom: 20px;">
+            <h3>📢 Post Announcement</h3>
+            <input type="text" id="news-title" placeholder="Title (e.g., Water Interruption)" style="width:100%; margin:10px 0; padding:8px;">
+            <textarea id="news-body" placeholder="Details..." style="width:100%; height:80px; padding:8px;"></textarea>
+            <button onclick="adminApp.postNews()" class="btn-primary" style="margin-top:10px;">Post News</button>
+        </div>
+
+        <div class="card" style="margin-bottom: 20px;">
+            <h3>🧾 Create Bill / SOA</h3>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <input type="text" id="bill-room" placeholder="Room No (e.g. 101)">
+                <input type="month" id="bill-month">
+                <input type="number" id="bill-water" placeholder="Water Cost">
+                <input type="number" id="bill-electric" placeholder="Electric Cost">
+                <input type="text" id="bill-due" placeholder="Due Date (e.g. Feb 15)">
+            </div>
+            <button onclick="adminApp.createBill()" class="btn-primary" style="margin-top:10px; width:100%;">Send Bill</button>
+        </div>
+
+        <h3>🎫 Open Tickets</h3>
+        <div id="admin-tickets-list" class="card-grid">
+            <p>Loading tickets...</p>
+        </div>
+    </section>
+
+    <script src="admin.js"></script>
+</body>
+</html>

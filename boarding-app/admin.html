@@ -1,241 +1,440 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Boarding House App</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="manifest" href="manifest.json" />
-
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Boarding House</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="security.js"></script>
 </head>
 <body>
 
-  <!-- TENANT LOGIN (keep IDs so app.js keeps working) -->
-  <section id="login-screen" class="active-screen">
-    <div class="login-card">
-      <h1>Welcome Home</h1>
-      <p>Tenant Portal</p>
-
-      <form id="login-form">
-        <div class="form-group">
-          <label>Room Number</label>
-          <input type="text" id="login-room" placeholder="e.g. 101" required />
+    <section id="admin-login" class="active-screen">
+        <div class="login-card">
+            <h1>Admin Access</h1>
+            <input type="password" id="admin-pass" placeholder="Admin Password" class="full-width">
+            <button onclick="adminApp.login()" class="btn-primary full-width" style="margin-top: 1rem;">Enter</button>
         </div>
-        <div class="form-group">
-          <label>PIN Code</label>
-          <input type="password" id="login-pin" placeholder="****" required />
+    </section>
+
+    <section id="admin-dash" class="hidden">
+        <!-- Sidebar -->
+        <div class="admin-sidebar">
+            <div class="sidebar-header">
+                <h2>🏠 BHouse</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-label">CORE</div>
+                <a href="#" onclick="adminApp.showView('dashboard'); return false;" class="nav-link active" data-view="dashboard">
+                    <span class="nav-icon">📊</span> Dashboard
+                </a>
+                <a href="#" onclick="adminApp.showView('tenants'); return false;" class="nav-link" data-view="tenants">
+                    <span class="nav-icon">👥</span> Tenants
+                </a>
+                <a href="#" onclick="adminApp.showView('readings'); return false;" class="nav-link" data-view="readings">
+                    <span class="nav-icon">📊</span> Meter Readings
+                </a>
+                <a href="#" onclick="adminApp.showView('billing'); return false;" class="nav-link" data-view="billing">
+                    <span class="nav-icon">💰</span> Billing
+                </a>
+                <a href="#" onclick="adminApp.showView('tickets'); return false;" class="nav-link" data-view="tickets">
+                    <span class="nav-icon">🎫</span> Tickets
+                </a>
+                <a href="#" onclick="adminApp.showView('announcements'); return false;" class="nav-link" data-view="announcements">
+                    <span class="nav-icon">📢</span> Announcements
+                </a>
+                
+                <div class="nav-label" style="margin-top: 1.5rem;">SECONDARY</div>
+                <a href="#" onclick="alert('Reports coming soon'); return false;" class="nav-link">
+                    <span class="nav-icon">📈</span> Reports
+                </a>
+                <a href="#" onclick="alert('Settings coming soon'); return false;" class="nav-link">
+                    <span class="nav-icon">⚙️</span> Settings
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button onclick="location.reload()" class="btn-logout full-width">Logout</button>
+            </div>
         </div>
 
-        <button type="submit" class="btn-primary full-width">Login</button>
-        <div id="login-error" class="error-msg"></div>
-      </form>
-
-      <div style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem;">
-        <a href="admin.html" style="color: #ccc; text-decoration: none; font-size: 0.8rem;">
-          🔒 Admin Access
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <!-- TENANT APP (restructured to match admin.html layout) -->
-  <section id="app-container" class="hidden">
-    <!-- Sidebar -->
-    <div class="admin-sidebar tenant-sidebar">
-      <div class="sidebar-header">
-        <h2>🏠 Tenant</h2>
-      </div>
-
-      <nav class="sidebar-nav">
-        <div class="nav-label">CORE</div>
-
-        <a href="#" onclick="app.nav('home'); return false;" class="nav-link active" data-view="home">
-          <span class="nav-icon">🏠</span> Dashboard
-        </a>
-
-        <a href="#" onclick="app.nav('announcements'); return false;" class="nav-link" data-view="announcements">
-          <span class="nav-icon">📢</span> Announcements
-        </a>
-
-        <a href="#" onclick="app.nav('tickets'); return false;" class="nav-link" data-view="tickets">
-          <span class="nav-icon">🎫</span> Tickets
-        </a>
-
-        <a href="#" onclick="app.nav('billing'); return false;" class="nav-link" data-view="billing">
-          <span class="nav-icon">🧾</span> Billing
-        </a>
-
-        <div class="nav-label" style="margin-top: 1.5rem;">SECONDARY</div>
-
-        <a href="#" onclick="alert('Profile coming soon'); return false;" class="nav-link">
-          <span class="nav-icon">👤</span> Profile
-        </a>
-
-        <a href="#" onclick="alert('Help coming soon'); return false;" class="nav-link">
-          <span class="nav-icon">❓</span> Help
-        </a>
-      </nav>
-
-      <div class="sidebar-footer">
-        <button onclick="app.logout()" class="btn-logout full-width">Logout</button>
-      </div>
-    </div>
-
-    <!-- Main Content -->
-    <div class="admin-content tenant-content">
-      <div class="admin-header tenant-header">
-        <h2 id="tenant-page-title">Dashboard</h2>
-        <!-- Optional: keep space for later filters/search -->
-      </div>
-
-      <main>
-        <!-- IMPORTANT: keep the same view IDs + classes so app.js still works -->
-        <section id="home-view" class="view-section">
-          <div class="home-grid">
-            <div class="home-main">
-              <div class="card">
-                <h3>📢 Latest Announcements</h3>
-                <div id="home-announcements-list" class="list-container">
-                  <p class="loading-text">Loading...</p>
-                </div>
-                <button class="btn-text" onclick="app.nav('announcements')">View All</button>
-              </div>
+        <!-- Main Content Area -->
+        <div class="admin-content">
+            <div class="admin-header">
+                <h2 id="page-title">Dashboard</h2>
             </div>
 
-            <div class="home-sidebar">
-              <div class="card highlight-card">
-                <h3>⚡ Latest Bill</h3>
-                <div id="home-soa-summary">
-                  <p class="loading-text">Checking...</p>
+            <!-- Dashboard View -->
+            <div id="view-dashboard" class="admin-view active">
+                <!-- KPI Strip -->
+                <div class="kpi-strip">
+                    <div class="kpi-card">
+                        <div class="kpi-label">Occupied Rooms</div>
+                        <div class="kpi-value" id="kpi-occupied">-</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Vacant Rooms</div>
+                        <div class="kpi-value" id="kpi-vacant">-</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Bills Due</div>
+                        <div class="kpi-value" id="kpi-bills-due">-</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Open Tickets</div>
+                        <div class="kpi-value" id="kpi-tickets">-</div>
+                    </div>
                 </div>
-                <button class="btn-secondary full-width" onclick="app.nav('billing')">View Details</button>
-              </div>
 
-              <div class="card quick-actions">
-                <h3>Quick Actions</h3>
-                <div class="action-grid">
-                  <button class="action-btn" onclick="app.nav('tickets')">Report Issue</button>
-                  <button class="action-btn" onclick="app.nav('billing')">History</button>
+                <!-- Quick Actions Grid -->
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Recent Tenants</h3>
+                        <div id="dashboard-tenants" style="font-size: 0.85rem; color: var(--text-muted);">Loading...</div>
+                        <button onclick="adminApp.showView('tenants')" class="btn-secondary full-width" style="margin-top: 0.75rem;">View All Tenants</button>
+                    </div>
+                    <div class="card">
+                        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Unpaid Bills</h3>
+                        <div id="dashboard-bills" style="font-size: 0.85rem; color: var(--text-muted);">Loading...</div>
+                        <button onclick="adminApp.showView('billing')" class="btn-secondary full-width" style="margin-top: 0.75rem;">View All Bills</button>
+                    </div>
+                    <div class="card">
+                        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">Open Tickets</h3>
+                        <div id="dashboard-tickets" style="font-size: 0.85rem; color: var(--text-muted);">Loading...</div>
+                        <button onclick="adminApp.showView('tickets')" class="btn-secondary full-width" style="margin-top: 0.75rem;">View All Tickets</button>
+                    </div>
                 </div>
-              </div>
             </div>
-          </div>
-        </section>
 
-        <section id="announcements-view" class="view-section hidden">
-          <h2>Announcements</h2>
-          <div id="all-announcements-list" class="card-grid"></div>
-        </section>
+            <!-- Tenants View -->
+            <div id="view-tenants" class="admin-view">
+                <div class="card">
+                    <button onclick="adminApp.openAddTenantModal()" class="btn-primary" style="margin-bottom: 0.75rem;">👥 Add New Tenant</button>
+                    <div class="tenants-table-container">
+                        <table class="tenants-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Room No</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tenants-tbody">
+                                <tr>
+                                    <td colspan="3" style="text-align:center; color:var(--text-muted);">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
-        <section id="tickets-view" class="view-section hidden">
-          <h2>Support Tickets</h2>
+            <!-- Meter Readings View -->
+            <div id="view-readings" class="admin-view">
+                <div class="card">
+                    <button onclick="adminApp.openAddReadingModal()" class="btn-primary" style="margin-bottom: 0.75rem; margin-right: 0.5rem;">➕ Add Meter Reading</button>
+                    <button onclick="adminApp.openReadingsModal()" class="btn-secondary" style="margin-bottom: 0.75rem;">📄 View All Readings</button>
+                </div>
+            </div>
 
-          <div class="card form-card">
-            <h3>Submit New Ticket</h3>
-            <form id="ticket-form">
-              <div class="form-group">
-                <label>Category</label>
-                <select id="ticket-category">
-                  <option value="maintenance">Maintenance</option>
-                  <option value="wifi">Internet/WiFi</option>
-                  <option value="billing">Billing Inquiry</option>
-                  <option value="noise">Noise Complaint</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
+            <!-- Billing View -->
+            <div id="view-billing" class="admin-view">
+                <div class="card">
+                    <div id="admin-billing-list" class="empty-state">Fetching billing records…</div>
+                </div>
+            </div>
 
-              <div class="form-group">
+            <!-- Tickets View -->
+            <div id="view-tickets" class="admin-view">
+                <div class="card">
+                    <div id="admin-tickets-list" class="empty-state">Checking for new requests…</div>
+                </div>
+            </div>
+
+            <!-- Announcements View -->
+            <div id="view-announcements" class="admin-view">
+                <div class="card">
+                    <button onclick="adminApp.openAnnouncementModal()" class="btn-primary">📢 Post New Announcement</button>
+                </div>
+            </div>
+        </div>
+    </section>
+                    <table class="tenants-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Room No</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tenants-tbody">
+                            <tr>
+                                <td colspan="3" style="text-align:center; color:var(--text-muted);">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </details>
+
+        <details class="admin-section" open>
+            <summary>
+                <div>
+                    <div class="section-title">📊 Meter Readings</div>
+                    <div class="section-desc">Record monthly water and electric usage</div>
+                </div>
+            </summary>
+            <div class="card section-card">
+                <button onclick="adminApp.openAddReadingModal()" class="btn-primary full-width" style="margin-bottom: 0.75rem;">➕ Add Meter Reading</button>
+                <button onclick="adminApp.openReadingsModal()" class="btn-secondary full-width">📄 View All Readings</button>
+            </div>
+        </details>
+
+        <details class="admin-section">
+            <summary>
+                <div>
+                    <div class="section-title">💰 Billing Management</div>
+                    <div class="section-desc">View and mark tenant payments</div>
+                </div>
+            </summary>
+            <div class="card section-card">
+                <div id="admin-billing-list" class="empty-state">Fetching billing records…</div>
+            </div>
+        </details>
+
+        <details class="admin-section">
+            <summary>
+                <div>
+                    <div class="section-title">🎫 Tickets</div>
+                    <div class="section-desc">Review and resolve support requests</div>
+                </div>
+            </summary>
+            <div class="card section-card">
+                <div id="admin-tickets-list" class="empty-state">Checking for new requests…</div>
+            </div>
+        </details>
+
+        <details class="admin-section">
+            <summary>
+                <div>
+                    <div class="section-title">📢 Announcements</div>
+                    <div class="section-desc">Post updates for tenants</div>
+                </div>
+            </summary>
+            <div class="card section-card">
+                <button onclick="adminApp.openAnnouncementModal()" class="btn-primary full-width">📢 Post New Announcement</button>
+            </div>
+        </details>
+        </div>
+    </section>
+
+    <!-- Add Tenant Modal -->
+    <div id="add-tenant-modal" class="modal-overlay" onclick="adminApp.closeAddTenantModal()">
+        <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 500px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3>👥 Add New Tenant</h3>
+                <button onclick="adminApp.closeAddTenantModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" id="tenant-name" placeholder="Full Name" class="full-width">
+            </div>
+            <div class="form-group">
+                <label>Room Number</label>
+                <input type="text" id="tenant-room" placeholder="Room No (e.g., 101)" class="full-width">
+            </div>
+            <div class="form-group">
+                <label>4-Digit PIN (for tenant login)</label>
+                <input type="password" id="tenant-pin" placeholder="4-Digit PIN" maxlength="4" class="full-width">
+            </div>
+            <div class="form-group">
+                <label>Email (Optional)</label>
+                <input type="email" id="tenant-email" placeholder="Email" class="full-width">
+            </div>
+            <div class="form-group">
+                <label>Phone (Optional)</label>
+                <input type="tel" id="tenant-phone" placeholder="Phone" class="full-width">
+            </div>
+            <button onclick="adminApp.addTenant()" class="btn-primary full-width">Save Tenant</button>
+        </div>
+    </div>
+
+    <!-- Add Meter Reading Modal -->
+    <div id="add-reading-modal" class="modal-overlay" onclick="adminApp.closeAddReadingModal()">
+        <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 500px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3>➕ Add Meter Reading</h3>
+                <button onclick="adminApp.closeAddReadingModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Room Number</label>
+                <input type="text" id="reading-room" placeholder="Room No (e.g., 101)" class="full-width">
+            </div>
+            <div class="form-group">
+                <label>Reading Date</label>
+                <input type="date" id="reading-date" class="full-width">
+            </div>
+            <div class="form-group">
+                <label>Water Reading (m³)</label>
+                <input type="number" id="reading-water" placeholder="Water Reading" class="full-width">
+            </div>
+            <div class="form-group">
+                <label>Electric Reading (kWh)</label>
+                <input type="number" id="reading-electric" placeholder="Electric Reading" class="full-width">
+            </div>
+            <button onclick="adminApp.saveReadingFromForm()" class="btn-primary full-width">Save Reading</button>
+        </div>
+    </div>
+
+    <!-- Post Announcement Modal -->
+    <div id="announcement-modal" class="modal-overlay" onclick="adminApp.closeAnnouncementModal()">
+        <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 500px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3>📢 Post Announcement</h3>
+                <button onclick="adminApp.closeAnnouncementModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Title</label>
+                <input type="text" id="news-title" placeholder="Title (e.g., Water Interruption)" class="full-width">
+            </div>
+            <div class="form-group">
                 <label>Message</label>
-                <textarea id="ticket-message" rows="3" placeholder="Describe your issue..." required></textarea>
-              </div>
-
-              <button type="submit" class="btn-primary">Submit Ticket</button>
-            </form>
-          </div>
-
-          <h3 class="mt-large">My Ticket History</h3>
-          <div id="tickets-list" class="card-grid"></div>
-        </section>
-
-        <section id="billing-view" class="view-section hidden">
-          <h2>Billing Statements</h2>
-          <div id="billing-list" class="card-grid"></div>
-        </section>
-      </main>
-
-      <!-- Keep the mobile nav if your CSS/JS expects it. On desktop, sidebar dominates. -->
-      <nav class="mobile-nav">
-        <button class="nav-item" onclick="app.nav('home')">
-          <span class="icon">🏠</span>
-          <span class="label">Home</span>
-        </button>
-        <button class="nav-item" onclick="app.nav('announcements')">
-          <span class="icon">📢</span>
-          <span class="label">News</span>
-        </button>
-        <button class="nav-item" onclick="app.nav('tickets')">
-          <span class="icon">🎫</span>
-          <span class="label">Tickets</span>
-        </button>
-        <button class="nav-item" onclick="app.nav('billing')">
-          <span class="icon">🧾</span>
-          <span class="label">Billing</span>
-        </button>
-      </nav>
+                <textarea id="news-body" placeholder="Details..." style="width:100%; height:120px; padding:0.5rem; border: 1px solid var(--border); border-radius: 0.35rem; font-size:0.875rem;"></textarea>
+            </div>
+            <button onclick="adminApp.postNews()" class="btn-primary full-width">Post Announcement</button>
+        </div>
     </div>
-  </section>
 
-  <footer class="site-footer">
-    <div class="max-container footer-content">
-      <span>© 2026 Chinoxdadz. All rights reserved.</span>
-      <div class="footer-links">
-        <a href="terms.html">Terms</a>
-        <a href="LICENSE">License</a>
-      </div>
+    <!-- Readings Modal -->
+    <div id="readings-modal" class="modal-overlay" onclick="adminApp.closeReadingsModal()">
+        <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 800px; max-height: 80vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3>📄 Recent Meter Readings</h3>
+                <button onclick="adminApp.closeReadingsModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);">&times;</button>
+            </div>
+            <div style="display:flex; gap:0.5rem; margin-bottom:1rem; flex-wrap:wrap;">
+                <select id="readings-filter-room" onchange="adminApp.filterReadings()" style="flex:1; min-width:120px; padding:0.5rem; font-size:0.85rem; border-radius:0.35rem; border:1px solid var(--border);">
+                    <option value="">All Rooms</option>
+                </select>
+                <select id="readings-limit" onchange="adminApp.filterReadings()" style="flex:1; min-width:100px; padding:0.5rem; font-size:0.85rem; border-radius:0.35rem; border:1px solid var(--border);">
+                    <option value="10">Last 10</option>
+                    <option value="20">Last 20</option>
+                    <option value="50">Last 50</option>
+                    <option value="all">All</option>
+                </select>
+            </div>
+            <div id="readings-list" class="empty-state">Loading recent readings…</div>
+        </div>
     </div>
-  </footer>
 
-  <script>
-    // Keeps the tenant top title synced with the current view,
-    // without touching your existing app.js logic.
-    (function () {
-      const titleEl = document.getElementById('tenant-page-title');
-      if (!titleEl) return;
+    <!-- Billing Modal -->
+    <div id="bill-modal" class="modal-overlay" onclick="adminApp.closeBillModal()">
+        <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 550px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3>🧾 Create Bill / SOA</h3>
+                <button onclick="adminApp.closeBillModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);">&times;</button>
+            </div>
+            <div class="form-grid">
+                <input type="text" id="bill-room" readonly style="background-color: #f5f5f5; cursor: not-allowed; width:100%; padding:0.8rem; border:1px solid var(--border); border-radius:8px; font-size:1rem;">
+                <input type="month" id="bill-month" onchange="adminApp.fetchReadings()">
+                <input type="number" id="bill-rental" placeholder="Rental Cost (₱)">
+                <input type="text" id="bill-due" placeholder="Due Date (e.g. Feb 15)">
+            </div>
+            
+            <div style="margin-top: 1rem; padding: 0.75rem; background: var(--bg-color); border-radius: 0.35rem; border: 1px solid var(--border);">
+                <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.02em;">💧 Water Meter</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.85rem;">
+                    <div>
+                        <label style="color: var(--text-muted); font-size: 0.75rem;">Previous Reading</label>
+                        <input type="number" id="bill-water-prev" readonly style="background: #fff; border: 1px solid var(--border); padding: 0.4rem; border-radius: 0.25rem; width: 100%; font-weight: 600;">
+                    </div>
+                    <div>
+                        <label style="color: var(--text-muted); font-size: 0.75rem;">Current Reading</label>
+                        <input type="number" id="bill-water-reading" readonly style="background: #fff; border: 1px solid var(--border); padding: 0.4rem; border-radius: 0.25rem; width: 100%; font-weight: 600;">
+                    </div>
+                </div>
+                <div style="margin-top: 0.5rem; padding: 0.5rem; background: #fff; border-radius: 0.25rem; font-size: 0.8rem;">
+                    <strong>Consumption:</strong> <span id="water-consumption">0</span> m³ × ₱<span id="water-rate">50</span>/m³ = <strong style="color: var(--primary);">₱<span id="water-cost">0</span></strong>
+                </div>
+            </div>
 
-      const map = {
-        home: 'Dashboard',
-        announcements: 'Announcements',
-        tickets: 'Tickets',
-        billing: 'Billing'
-      };
+            <div style="margin-top: 0.75rem; padding: 0.75rem; background: var(--bg-color); border-radius: 0.35rem; border: 1px solid var(--border);">
+                <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.02em;">⚡ Electric Meter</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.85rem;">
+                    <div>
+                        <label style="color: var(--text-muted); font-size: 0.75rem;">Previous Reading</label>
+                        <input type="number" id="bill-electric-prev" readonly style="background: #fff; border: 1px solid var(--border); padding: 0.4rem; border-radius: 0.25rem; width: 100%; font-weight: 600;">
+                    </div>
+                    <div>
+                        <label style="color: var(--text-muted); font-size: 0.75rem;">Current Reading</label>
+                        <input type="number" id="bill-electric-reading" readonly style="background: #fff; border: 1px solid var(--border); padding: 0.4rem; border-radius: 0.25rem; width: 100%; font-weight: 600;">
+                    </div>
+                </div>
+                <div style="margin-top: 0.5rem; padding: 0.5rem; background: #fff; border-radius: 0.25rem; font-size: 0.8rem;">
+                    <strong>Consumption:</strong> <span id="electric-consumption">0</span> kWh × ₱<span id="electric-rate">12</span>/kWh = <strong style="color: var(--primary);">₱<span id="electric-cost">0</span></strong>
+                </div>
+            </div>
 
-      // Wrap app.nav if it exists so title + sidebar active state updates
-      const wait = setInterval(() => {
-        if (!window.app || typeof window.app.nav !== 'function') return;
-        clearInterval(wait);
+            <button onclick="adminApp.createBill()" class="btn-primary full-width" style="margin-top:1rem;">Calculate & Send Bill</button>
+        </div>
+    </div>
 
-        const originalNav = window.app.nav.bind(window.app);
-        window.app.nav = function(viewName) {
-          // run original navigation
-          const res = originalNav(viewName);
+    <!-- Tenant Billing History Modal -->
+    <div id="tenant-bills-modal" class="modal-overlay" onclick="adminApp.closeTenantBillsModal()">
+        <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 600px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 id="tenant-bills-title" style="font-size:1rem;">💰 Billing History</h3>
+                <button onclick="adminApp.closeTenantBillsModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);">&times;</button>
+            </div>
+            <div id="tenant-bills-list" style="max-height: 500px; overflow-y: auto;">
+                <p>Loading...</p>
+            </div>
+        </div>
+    </div>
 
-          // update title
-          titleEl.textContent = map[viewName] || 'Dashboard';
+    <!-- Edit Tenant Modal -->
+    <div id="edit-tenant-modal" class="modal-overlay" onclick="adminApp.closeEditTenantModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3>✏️ Edit Tenant</h3>
+                <button onclick="adminApp.closeEditTenantModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);">&times;</button>
+            </div>
+            <input type="hidden" id="edit-tenant-id">
+            <input type="text" id="edit-tenant-name" placeholder="Full Name" style="width:100%; padding:0.8rem; border:1px solid var(--border); border-radius:8px; margin-bottom:0.5rem;">
+            <input type="text" id="edit-tenant-room" placeholder="Room No" style="width:100%; padding:0.8rem; border:1px solid var(--border); border-radius:8px; margin-bottom:0.5rem;">
+            <input type="password" id="edit-tenant-pin" placeholder="4-Digit PIN" maxlength="4" style="width:100%; padding:0.8rem; border:1px solid var(--border); border-radius:8px; margin-bottom:0.5rem;">
+            <input type="email" id="edit-tenant-email" placeholder="Email" style="width:100%; padding:0.8rem; border:1px solid var(--border); border-radius:8px; margin-bottom:0.5rem;">
+            <input type="tel" id="edit-tenant-phone" placeholder="Phone" style="width:100%; padding:0.8rem; border:1px solid var(--border); border-radius:8px; margin-bottom:0.5rem;">
+            <button onclick="adminApp.updateTenant()" class="btn-primary full-width">Update Tenant</button>
+        </div>
+    </div>
 
-          // update active link in sidebar
-          document.querySelectorAll('#app-container .sidebar-nav .nav-link').forEach(a => {
-            a.classList.toggle('active', a.getAttribute('data-view') === viewName);
-          });
+    <!-- Edit Bill Modal -->
+    <div id="edit-bill-modal" class="modal-overlay" onclick="adminApp.closeEditBillModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3>✏️ Edit Bill</h3>
+                <button onclick="adminApp.closeEditBillModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);">&times;</button>
+            </div>
+            <input type="hidden" id="edit-bill-id">
+            <div style="margin-bottom:0.5rem;">
+                <label style="font-size:0.9rem; color:var(--text-muted); display:block; margin-bottom:0.3rem;">Room & Month</label>
+                <input type="text" id="edit-bill-room" readonly style="width:48%; padding:0.8rem; border:1px solid var(--border); border-radius:8px; background:#f5f5f5; margin-right:2%;">
+                <input type="text" id="edit-bill-month" readonly style="width:48%; padding:0.8rem; border:1px solid var(--border); border-radius:8px; background:#f5f5f5;">
+            </div>
+            <input type="number" id="edit-bill-rental" placeholder="Rental Amount" style="width:100%; padding:0.8rem; border:1px solid var(--border); border-radius:8px; margin-bottom:0.5rem;">
+            <input type="number" id="edit-bill-water" placeholder="Water Amount" style="width:100%; padding:0.8rem; border:1px solid var(--border); border-radius:8px; margin-bottom:0.5rem;">
+            <input type="number" id="edit-bill-electric" placeholder="Electric Amount" style="width:100%; padding:0.8rem; border:1px solid var(--border); border-radius:8px; margin-bottom:0.5rem;">
+            <input type="text" id="edit-bill-due" placeholder="Due Date" style="width:100%; padding:0.8rem; border:1px solid var(--border); border-radius:8px; margin-bottom:0.5rem;">
+            <select id="edit-bill-status" style="width:100%; padding:0.8rem; border:1px solid var(--border); border-radius:8px; margin-bottom:0.5rem;">
+                <option value="unpaid">Unpaid</option>
+                <option value="paid">Paid</option>
+            </select>
+            <button onclick="adminApp.updateBill()" class="btn-primary full-width">Update Bill</button>
+        </div>
+    </div>
 
-          return res;
-        };
-      }, 50);
-      setTimeout(() => clearInterval(wait), 5000);
-    })();
-  </script>
-
-  <script src="app.js"></script>
+    <script src="admin.js"></script>
 </body>
 </html>

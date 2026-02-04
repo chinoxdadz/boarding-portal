@@ -18,8 +18,8 @@ const UNIT_PRICES = {
 };
 
 const adminApp = {
-    // Admin password - CHANGE THIS!
-    ADMIN_PASSWORD: "admin123",
+    // Admin password - Store securely and change regularly
+    ADMIN_PASSWORD: "BH@dm!n2026#Secure",
     
     login: () => {
         const pass = document.getElementById('admin-pass').value;

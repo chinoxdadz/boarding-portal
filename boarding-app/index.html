@@ -9,6 +9,7 @@
     
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="security.js"></script>
 </head>
 <body>
 
@@ -53,11 +54,16 @@
 
         <main class="max-container">
             
+            <button id="back-btn" class="btn-back-main hidden" onclick="app.back()">
+                <span class="back-icon">←</span>
+                <span>Back</span>
+            </button>
+            
             <section id="home-view" class="view-section">
                 <h2>Dashboard</h2>
                 <div class="home-grid">
                     <div class="home-main">
-                        <div class="card">
+                        <div class="card highlight-card">
                             <h3>📢 Latest Announcements</h3>
                             <div id="home-announcements-list" class="list-container">
                                 <p class="loading-text">Loading...</p>
@@ -78,8 +84,8 @@
                         <div class="card quick-actions">
                             <h3>Quick Actions</h3>
                             <div class="action-grid">
-                                <button class="action-btn" onclick="app.nav('tickets')">Report Issue</button>
-                                <button class="action-btn" onclick="app.nav('billing')">History</button>
+                                <button class="btn-primary full-width" onclick="app.nav('tickets')">🎫 Report Issue</button>
+                                <button class="btn-secondary full-width" onclick="app.nav('billing')">📊 View History</button>
                             </div>
                         </div>
                     </div>

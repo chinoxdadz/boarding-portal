@@ -1,0 +1,74 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isTenant(roomNo) {
+      return isSignedIn() && request.auth.token.roomNo == roomNo;
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+    
+    // Tenants collection - HIGHLY RESTRICTED
+    match /tenants/{tenantId} {
+      // Only allow read if authenticated and reading own data
+      allow read: if isSignedIn() && 
+                     resource.data.roomNo == request.auth.token.roomNo;
+      
+      // Only admins can create/update/delete tenants
+      allow create, update, delete: if isAdmin();
+      
+      // NEVER allow client to read PIN field directly
+      // This should be handled by Cloud Functions for authentication
+    }
+    
+    // Announcements - Read-only for tenants
+    match /announcements/{announcementId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    
+    // Tickets - Tenants can only access their own
+    match /tickets/{ticketId} {
+      // Read only their own tickets
+      allow read: if isSignedIn() && 
+                     resource.data.roomNo == request.auth.token.roomNo;
+      
+      // Create tickets only for their own room
+      allow create: if isSignedIn() && 
+                       request.resource.data.roomNo == request.auth.token.roomNo;
+      
+      // Cannot update or delete own tickets (admin only)
+      allow update, delete: if isAdmin();
+    }
+    
+    // Billing/SOAs - Read-only access to own bills
+    match /soas/{soaId} {
+      allow read: if isSignedIn() && 
+                     resource.data.roomNo == request.auth.token.roomNo;
+      allow write: if isAdmin();
+    }
+    
+    // Meter Readings - Admin only
+    match /readings/{readingId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+    
+    // Admin-specific collections
+    match /admin/{document=**} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Deny all other access by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

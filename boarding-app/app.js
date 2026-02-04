@@ -22,6 +22,7 @@ function formatDate(ts) {
 // ==================== STATE MANAGEMENT ====================
 const app = {
     user: null, // Stores { roomNo, pin, ... }
+    history: [], // Navigation history
     
     // Initialize App
     init: () => {
@@ -36,6 +37,11 @@ const app = {
 
     // Navigation Router
     nav: (screen) => {
+        // Add to history if not going back
+        if (app.history[app.history.length - 1] !== screen) {
+            app.history.push(screen);
+        }
+        
         // Hide all views
         document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
         
@@ -45,41 +51,92 @@ const app = {
             target.classList.remove('hidden');
             app.loadData(screen); // Fetch data for this screen
         }
+        
+        // Show/hide back button
+        const backBtn = document.getElementById('back-btn');
+        if (backBtn) {
+            if (screen === 'home' || app.history.length <= 1) {
+                backBtn.classList.add('hidden');
+            } else {
+                backBtn.classList.remove('hidden');
+            }
+        }
+    },
+    
+    // Back navigation
+    back: () => {
+        // Remove current view from history
+        if (app.history.length > 1) {
+            app.history.pop();
+            // Get previous view
+            const previousView = app.history[app.history.length - 1] || 'home';
+            // Navigate without adding to history again
+            app.history.pop(); // Remove it temporarily
+            app.nav(previousView);
+        } else {
+            app.nav('home');
+        }
     },
 
     // ==================== AUTHENTICATION ====================
     login: async (e) => {
-        e.preventDefault(); // This stops the page from reloading!
+        e.preventDefault();
         
-        const room = document.getElementById('login-room').value.trim();
-        const pin = document.getElementById('login-pin').value.trim();
+        const roomInput = document.getElementById('login-room').value;
+        const pinInput = document.getElementById('login-pin').value;
         const errorMsg = document.getElementById('login-error');
 
-        // Clear previous errors
-        errorMsg.innerText = "Checking credentials...";
-        
-        console.log(`Attempting login for Room: ${room}, PIN: ${pin}`); // Debug log
+        errorMsg.innerText = "";
 
         try {
+            // Validate and sanitize inputs
+            const room = Security.validateRoomNo(roomInput);
+            const pin = Security.validatePin(pinInput);
+            
+            // Check rate limiting
+            Security.rateLimiter.canAttempt(room);
+
+            // Clear previous errors
+            errorMsg.innerText = "Checking credentials...";
+
             // Check Firestore for matching Room AND PIN
+            // WARNING: This is NOT secure! PINs should be hashed server-side
+            // For production, use Firebase Authentication or Cloud Functions
             const snapshot = await db.collection('tenants')
                 .where('roomNo', '==', room)
                 .where('pin', '==', pin)
+                .limit(1)
                 .get();
 
             if (!snapshot.empty) {
-                console.log("Login Success!");
+                Security.rateLimiter.recordAttempt(room, true);
                 app.user = { roomNo: room };
-                localStorage.setItem('bh_tenant', JSON.stringify(app.user));
+                
+                // Store with timestamp for session management
+                const sessionData = {
+                    roomNo: room,
+                    loginTime: Date.now()
+                };
+                localStorage.setItem('bh_tenant', JSON.stringify(sessionData));
+                
                 app.showApp();
                 document.getElementById('login-form').reset();
             } else {
-                console.log("Login Failed: No match found.");
+                Security.rateLimiter.recordAttempt(room, false);
                 errorMsg.innerText = "Invalid Room Number or PIN.";
+                
+                // Clear password field on failed attempt
+                document.getElementById('login-pin').value = '';
             }
         } catch (err) {
-            console.error("Firebase Error:", err);
-            errorMsg.innerText = "Login error. Check console (F12) for details.";
+            if (err.message.includes('Too many failed attempts')) {
+                errorMsg.innerText = err.message;
+            } else if (err.message.includes('Invalid')) {
+                errorMsg.innerText = err.message;
+            } else {
+                console.error("Login Error:", err);
+                errorMsg.innerText = "Login error. Please try again.";
+            }
         }
     },
 
@@ -114,29 +171,33 @@ const app = {
     },
 
     // --- Home Logic ---
-    // --- Home Logic ---
     fetchHomeData: async () => {
+        // Check session validity
+        if (!Security.session.checkExpiration()) return;
+        
         const container = document.getElementById('home-announcements-list');
         const soaContainer = document.getElementById('home-soa-summary');
 
-        // 1. Get Top 3 Announcements
+        // 1. Get Top 2 Announcements
         try {
             const snap = await db.collection('announcements')
                 .orderBy('createdAt', 'desc')
-                .limit(3)
+                .limit(2)
                 .get();
             
             let html = '';
             snap.forEach(doc => {
                 const data = doc.data();
                 const date = formatDate(data.createdAt);
+                const safeTitle = Security.sanitizeText(data.title);
+                const safeBody = Security.sanitizeText(data.body);
                 html += `
                     <div class="announcement-card">
                         <div class="announcement-meta">
                             <small>${date}</small>
                         </div>
-                        <h4>${data.title}</h4>
-                        <p>${data.body}</p>
+                        <h4>${safeTitle}</h4>
+                        <p>${safeBody}</p>
                     </div>
                 `;
             });
@@ -162,13 +223,19 @@ const app = {
 
                 soaContainer.innerHTML = `
                     <div style="text-align:center; padding: 0.75rem 0;">
-                        <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0 0 0.5rem 0; text-transform: uppercase; font-weight: 600;">Due: ${data.dueDate || 'N/A'}</p>
+                        <p style="font-size: 0.7rem; color: var(--text-muted); margin: 0 0 0.5rem 0; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Due: ${data.dueDate || 'N/A'}</p>
                         <h1 style="font-size: 2rem; color: var(--primary); margin: 0 0 0.5rem 0; font-weight: 700;">₱${safeAmount.toFixed(2)}</h1>
                         <span class="status-badge status-${safeStatus.toLowerCase()}">${safeStatus}</span>
                     </div>
                 `;
             } else {
-                soaContainer.innerHTML = '<p>No bills found.</p>';
+                soaContainer.innerHTML = `
+                    <div class="no-bill-state">
+                        <div class="status-icon">✓</div>
+                        <div class="status-title">All Caught Up</div>
+                        <div class="status-description">No active bills at the moment</div>
+                    </div>
+                `;
             }
         } catch (e) { 
             console.error("SOA Error:", e);
@@ -189,13 +256,15 @@ const app = {
             snap.forEach(doc => {
                 const data = doc.data();
                 const date = formatDate(data.createdAt);
+                const safeTitle = Security.sanitizeText(data.title);
+                const safeBody = Security.sanitizeText(data.body);
                 html += `
                     <div class="announcement-card">
                         <div class="announcement-meta">
                             <small>${date}</small>
                         </div>
-                        <h4>${data.title}</h4>
-                        <p>${data.body}</p>
+                        <h4>${safeTitle}</h4>
+                        <p>${safeBody}</p>
                     </div>
                 `;
             });
@@ -221,13 +290,16 @@ const app = {
             snap.forEach(doc => {
                 const data = doc.data();
                 const date = formatDate(data.createdAt);
+                const safeCategory = Security.sanitizeText(data.category);
+                const safeMessage = Security.sanitizeText(data.message);
+                const safeStatus = Security.sanitizeText(data.status);
                 html += `
                     <div class="ticket-card">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-                            <h4 style="margin:0;">${data.category.toUpperCase()}</h4>
-                            <span class="status-badge status-${data.status}">${data.status}</span>
+                            <h4 style="margin:0;">${safeCategory.toUpperCase()}</h4>
+                            <span class="status-badge status-${safeStatus}">${safeStatus}</span>
                         </div>
-                        <p>${data.message}</p>
+                        <p>${safeMessage}</p>
                         <div class="ticket-meta">
                             <small>Submitted: ${date}</small>
                         </div>
@@ -244,13 +316,16 @@ const app = {
     submitTicket: async (e) => {
         e.preventDefault();
         const cat = document.getElementById('ticket-category').value;
-        const msg = document.getElementById('ticket-message').value;
+        const msgInput = document.getElementById('ticket-message').value;
         const btn = e.target.querySelector('button');
         
         btn.disabled = true;
         btn.innerText = "Submitting...";
 
         try {
+            // Validate and sanitize message
+            const msg = Security.validateMessage(msgInput);
+            
             await db.collection('tickets').add({
                 roomNo: app.user.roomNo,
                 category: cat,
@@ -263,7 +338,7 @@ const app = {
             app.fetchTickets(); // Refresh list
         } catch (err) {
             console.error(err);
-            alert('Error submitting ticket');
+            alert(err.message || 'Error submitting ticket');
         } finally {
             btn.disabled = false;
             btn.innerText = "Submit Ticket";

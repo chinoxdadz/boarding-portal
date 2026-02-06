@@ -425,6 +425,46 @@ h3 {
     color: var(--text-main);
 }
 
+.report-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+}
+
+.report-table th,
+.report-table td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+}
+
+.report-table th {
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+}
+
+.report-table tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+@media (max-width: 768px) {
+    .report-table th,
+    .report-table td {
+        padding: 0.5rem;
+        font-size: 0.75rem;
+    }
+}
+
 .theme-toggle {
     padding: 0.4rem 0.85rem;
     font-size: 0.75rem;

@@ -50,6 +50,12 @@ const adminApp = {
             btn.textContent = theme === 'light' ? 'Dark Mode' : 'Light Mode';
         }
     },
+
+    reportCache: {
+        type: 'owner',
+        rows: [],
+        summary: {}
+    },
     
     login: () => {
         const pass = document.getElementById('admin-pass').value;
@@ -92,13 +98,351 @@ const adminApp = {
             readings: 'Meter Readings',
             billing: 'Billing',
             tickets: 'Tickets',
-            announcements: 'Announcements'
+            announcements: 'Announcements',
+            reports: 'Reports'
         };
         document.getElementById('page-title').textContent = titles[viewName] || viewName;
 
         if (viewName === 'announcements') {
             adminApp.loadAnnouncements().catch(e => console.error('Announcements error:', e));
         }
+
+        if (viewName === 'reports') {
+            adminApp.loadReports();
+        }
+    },
+
+    loadReports: () => {
+        const startInput = document.getElementById('report-start');
+        const endInput = document.getElementById('report-end');
+        if (startInput && endInput) {
+            const now = new Date();
+            const endMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+            const startMonth = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
+            if (!startInput.value) startInput.value = startMonth;
+            if (!endInput.value) endInput.value = endMonth;
+        }
+        adminApp.generateReport();
+    },
+
+    generateReport: async () => {
+        const type = document.getElementById('report-type')?.value || 'owner';
+        const start = document.getElementById('report-start')?.value || '';
+        const end = document.getElementById('report-end')?.value || '';
+        const output = document.getElementById('report-output');
+        if (output) output.innerHTML = 'Generating report...';
+
+        const inRange = (monthStr) => {
+            if (!monthStr) return false;
+            if (start && monthStr < start) return false;
+            if (end && monthStr > end) return false;
+            return true;
+        };
+
+        try {
+            const billsSnap = await db.collection('soas').get();
+            const bills = billsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const tenantsSnap = await db.collection('tenants').get();
+            const tenants = tenantsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            const filteredBills = bills.filter(b => inRange(b.month || ''));
+            adminApp.reportCache.type = type;
+
+            if (type === 'owner') {
+                const totalBilled = filteredBills.reduce((sum, b) => sum + Number(b.totalAmount || 0), 0);
+                const totalPaid = filteredBills.filter(b => (b.status || '').toLowerCase() === 'paid')
+                    .reduce((sum, b) => sum + Number(b.totalAmount || 0), 0);
+                const totalUnpaid = totalBilled - totalPaid;
+                const paidCount = filteredBills.filter(b => (b.status || '').toLowerCase() === 'paid').length;
+                const unpaidCount = filteredBills.length - paidCount;
+                const cashPaid = filteredBills.filter(b => (b.paymentType || '') === 'cash')
+                    .reduce((sum, b) => sum + Number(b.totalAmount || 0), 0);
+                const gcashPaid = filteredBills.filter(b => (b.paymentType || '') === 'gcash')
+                    .reduce((sum, b) => sum + Number(b.totalAmount || 0), 0);
+                const today = new Date();
+                const overdueCount = filteredBills.filter(b => {
+                    const status = (b.status || '').toLowerCase();
+                    if (status !== 'unpaid') return false;
+                    if (!b.dueDate) return false;
+                    const due = new Date(b.dueDate);
+                    return due.toString() !== 'Invalid Date' && due < today;
+                }).length;
+
+                adminApp.reportCache.summary = {
+                    totalBilled,
+                    totalPaid,
+                    totalUnpaid,
+                    paidCount,
+                    unpaidCount,
+                    cashPaid,
+                    gcashPaid,
+                    overdueCount
+                };
+
+                adminApp.reportCache.rows = filteredBills.map(b => ({
+                    roomNo: b.roomNo || '',
+                    month: b.month || '',
+                    status: b.status || 'unpaid',
+                    total: Number(b.totalAmount || 0),
+                    paymentType: b.paymentType || ''
+                }));
+
+                if (output) {
+                    output.innerHTML = `
+                        <div class="kpi-strip" style="margin-bottom: 1rem;">
+                            <div class="kpi-card">
+                                <div class="kpi-label">Total Billed</div>
+                                <div class="kpi-value">₱${totalBilled.toFixed(2)}</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-label">Total Paid</div>
+                                <div class="kpi-value">₱${totalPaid.toFixed(2)}</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-label">Total Unpaid</div>
+                                <div class="kpi-value">₱${totalUnpaid.toFixed(2)}</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-label">Overdue Bills</div>
+                                <div class="kpi-value">${overdueCount}</div>
+                            </div>
+                        </div>
+                        <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 0.75rem;">
+                            <div class="card">
+                                <strong>Paid Bills:</strong> ${paidCount}
+                            </div>
+                            <div class="card">
+                                <strong>Unpaid Bills:</strong> ${unpaidCount}
+                            </div>
+                            <div class="card">
+                                <strong>Cash Collected:</strong> ₱${cashPaid.toFixed(2)}
+                            </div>
+                            <div class="card">
+                                <strong>GCash Collected:</strong> ₱${gcashPaid.toFixed(2)}
+                            </div>
+                        </div>
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>Room</th>
+                                    <th>Month</th>
+                                    <th>Status</th>
+                                    <th>Total</th>
+                                    <th>Payment</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${adminApp.reportCache.rows.map(r => `
+                                    <tr>
+                                        <td>${r.roomNo}</td>
+                                        <td>${r.month}</td>
+                                        <td>${r.status}</td>
+                                        <td>₱${r.total.toFixed(2)}</td>
+                                        <td>${r.paymentType || '-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+            }
+
+            if (type === 'rental-history') {
+                const byRoom = new Map();
+                filteredBills.forEach(b => {
+                    const room = b.roomNo || 'N/A';
+                    if (!byRoom.has(room)) byRoom.set(room, []);
+                    byRoom.get(room).push(b);
+                });
+
+                const rows = Array.from(byRoom.entries()).map(([room, items]) => {
+                    const totalBilled = items.reduce((sum, b) => sum + Number(b.totalAmount || 0), 0);
+                    const totalPaid = items.filter(b => (b.status || '').toLowerCase() === 'paid')
+                        .reduce((sum, b) => sum + Number(b.totalAmount || 0), 0);
+                    const last = items.sort((a, b) => (b.month || '').localeCompare(a.month || ''))[0];
+                    return {
+                        roomNo: room,
+                        months: items.length,
+                        totalBilled,
+                        totalPaid,
+                        lastStatus: last?.status || 'unpaid'
+                    };
+                });
+
+                adminApp.reportCache.rows = rows;
+                adminApp.reportCache.summary = {};
+
+                if (output) {
+                    output.innerHTML = `
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>Room</th>
+                                    <th>Months Billed</th>
+                                    <th>Total Billed</th>
+                                    <th>Total Paid</th>
+                                    <th>Last Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rows.map(r => `
+                                    <tr>
+                                        <td>${r.roomNo}</td>
+                                        <td>${r.months}</td>
+                                        <td>₱${r.totalBilled.toFixed(2)}</td>
+                                        <td>₱${r.totalPaid.toFixed(2)}</td>
+                                        <td>${r.lastStatus}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+            }
+
+            if (type === 'screening') {
+                const rows = tenants.map(t => ({
+                    name: t.name || '',
+                    roomNo: t.roomNo || '',
+                    email: t.email || '',
+                    phone: t.phone || ''
+                }));
+                adminApp.reportCache.rows = rows;
+                adminApp.reportCache.summary = {};
+
+                if (output) {
+                    output.innerHTML = `
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Room</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rows.map(r => `
+                                    <tr>
+                                        <td>${(typeof Security !== 'undefined' && Security.sanitizeText) ? Security.sanitizeText(r.name) : r.name}</td>
+                                        <td>${r.roomNo}</td>
+                                        <td>${r.email || '-'}</td>
+                                        <td>${r.phone || '-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+            }
+
+            if (type === 'rent-roll') {
+                const billsByRoom = new Map();
+                bills.forEach(b => {
+                    const room = b.roomNo || 'N/A';
+                    if (!billsByRoom.has(room)) billsByRoom.set(room, []);
+                    billsByRoom.get(room).push(b);
+                });
+
+                const rows = tenants.map(t => {
+                    const room = t.roomNo || 'N/A';
+                    const list = billsByRoom.get(room) || [];
+                    const latest = list.sort((a, b) => (b.month || '').localeCompare(a.month || ''))[0];
+                    return {
+                        name: t.name || '',
+                        roomNo: room,
+                        rent: Number(latest?.rentalAmount || 0),
+                        status: latest?.status || 'unpaid',
+                        dueDate: latest?.dueDate || 'N/A'
+                    };
+                });
+
+                adminApp.reportCache.rows = rows;
+                adminApp.reportCache.summary = {};
+
+                if (output) {
+                    output.innerHTML = `
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Room</th>
+                                    <th>Rent</th>
+                                    <th>Status</th>
+                                    <th>Due Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rows.map(r => `
+                                    <tr>
+                                        <td>${(typeof Security !== 'undefined' && Security.sanitizeText) ? Security.sanitizeText(r.name) : r.name}</td>
+                                        <td>${r.roomNo}</td>
+                                        <td>₱${r.rent.toFixed(2)}</td>
+                                        <td>${r.status}</td>
+                                        <td>${r.dueDate}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+            }
+        } catch (e) {
+            console.error('Report error:', e);
+            if (output) output.innerHTML = '<p style="color:var(--danger);">Could not generate report.</p>';
+        }
+    },
+
+    downloadReportCSV: () => {
+        const type = adminApp.reportCache.type || 'report';
+        const rows = adminApp.reportCache.rows || [];
+        if (!rows.length) {
+            alert('No report data to download.');
+            return;
+        }
+
+        let headers = [];
+        if (type === 'owner') headers = ['Room', 'Month', 'Status', 'Total', 'Payment'];
+        if (type === 'rental-history') headers = ['Room', 'Months Billed', 'Total Billed', 'Total Paid', 'Last Status'];
+        if (type === 'screening') headers = ['Name', 'Room', 'Email', 'Phone'];
+        if (type === 'rent-roll') headers = ['Name', 'Room', 'Rent', 'Status', 'Due Date'];
+
+        const csvRows = [headers.join(',')];
+        rows.forEach(r => {
+            const values = headers.map(h => {
+                const key = h.toLowerCase().replace(/\s+/g, '');
+                if (type === 'owner') {
+                    return [r.roomNo, r.month, r.status, r.total, r.paymentType][headers.indexOf(h)];
+                }
+                if (type === 'rental-history') {
+                    return [r.roomNo, r.months, r.totalBilled, r.totalPaid, r.lastStatus][headers.indexOf(h)];
+                }
+                if (type === 'screening') {
+                    return [r.name, r.roomNo, r.email, r.phone][headers.indexOf(h)];
+                }
+                if (type === 'rent-roll') {
+                    return [r.name, r.roomNo, r.rent, r.status, r.dueDate][headers.indexOf(h)];
+                }
+                return r[key] ?? '';
+            });
+            const escaped = values.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`);
+            csvRows.push(escaped.join(','));
+        });
+
+        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `report-${type}-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    },
+
+    printReport: () => {
+        window.print();
     },
 
     // Load Dashboard KPIs and Recent Data

@@ -51,7 +51,7 @@
                 </a>
                 
                 <div class="nav-label" style="margin-top: 1.5rem;">SECONDARY</div>
-                <a href="#" onclick="alert('Reports coming soon'); return false;" class="nav-link">
+                <a href="#" onclick="adminApp.showView('reports'); return false;" class="nav-link" data-view="reports">
                     <span class="nav-icon">📈</span> Reports
                 </a>
                 <a href="#" onclick="alert('Settings coming soon'); return false;" class="nav-link">
@@ -164,6 +164,39 @@
                 </div>
                 <div class="card" style="margin-top: 1rem;">
                     <div id="admin-announcements-list" class="empty-state">Loading announcements…</div>
+                </div>
+            </div>
+
+            <!-- Reports View -->
+            <div id="view-reports" class="admin-view">
+                <div class="card">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Report Type</label>
+                            <select id="report-type">
+                                <option value="owner">Owner / Financial Statement</option>
+                                <option value="rental-history">Rental History</option>
+                                <option value="screening">Screening Report</option>
+                                <option value="rent-roll">Rent Roll Report</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Start Month</label>
+                            <input type="month" id="report-start">
+                        </div>
+                        <div class="form-group">
+                            <label>End Month</label>
+                            <input type="month" id="report-end">
+                        </div>
+                    </div>
+                    <div class="report-actions">
+                        <button onclick="adminApp.generateReport()" class="btn-primary">Generate</button>
+                        <button onclick="adminApp.downloadReportCSV()" class="btn-secondary">Download CSV</button>
+                        <button onclick="adminApp.printReport()" class="btn-secondary">Print</button>
+                    </div>
+                </div>
+                <div class="card" style="margin-top: 1rem;">
+                    <div id="report-output" class="empty-state">Choose a report and click Generate.</div>
                 </div>
             </div>
         </div>
